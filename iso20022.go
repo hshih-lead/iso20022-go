@@ -5118,3 +5118,350 @@ type CreditTransferTransaction35 struct {
 	EnclosedFile                 []Document12                                  `xml:"NclsdFile,omitempty"`
 	SupplementaryData            []SupplementaryData1                          `xml:"SplmtryData,omitempty"`
 }
+
+// =============================================================================
+// RTP Message Spec (TCH) - additional message types
+//
+// The following types are derived from "The Clearing House" RTP Message Spec
+// (camt.035.001.05, remt.001.001.04, acmt.022.001.02 and admn.001-008.001.01).
+// They reuse the shared identification/party types already defined above.
+// =============================================================================
+
+// Camt03500105Document represents the CAMT.035.001.05 Proprietary Format Investigation message.
+// In RTP this is used as the Payment Acknowledgement, sent from the Creditor / Creditor Agent
+// back to the originator of a payment to acknowledge receipt (ACK) or posting of funds (ACWP).
+type Camt03500105Document struct {
+	XMLName                        xml.Name                          `xml:"urn:iso:std:iso:20022:tech:xsd:camt.035.001.05 Document"`
+	ProprietaryFormatInvestigation ProprietaryFormatInvestigationV05 `xml:"PrtryFrmtInvstgtn"`
+}
+
+// ProprietaryFormatInvestigationV05 is the body of the RTP Payment Acknowledgement (camt.035.001.05).
+type ProprietaryFormatInvestigationV05 struct {
+	Assignment      CaseAssignment5  `xml:"Assgnmt"` // Assigner = sender, Assignee = receiver
+	Case            Case5            `xml:"Case"`    // Identification must equal Assignment/Id
+	ProprietaryData ProprietaryData7 `xml:"PrtryData"`
+}
+
+// ProprietaryData7 carries the RTP-specific acknowledgement payload.
+type ProprietaryData7 struct {
+	Type string             `xml:"Tp"` // 'ACK' (end-user) or 'ACWP' (funds posted)
+	Data RTPAcknowledgement `xml:"Data"`
+}
+
+// RTPAcknowledgement is the proprietary <Data> content of a camt.035 Payment Acknowledgement.
+type RTPAcknowledgement struct {
+	Unstructured       *string             `xml:"Ustrd,omitempty"` // up to 140 chars, end-user acks only
+	OriginalReferences OriginalReferences1 `xml:"OrigRefs"`
+}
+
+// OriginalReferences1 holds the references copied from the original Credit Transfer (pacs.008).
+type OriginalReferences1 struct {
+	InstructionID string  `xml:"InstrId"`
+	EndToEndID    string  `xml:"EndToEndId"`
+	TransactionID string  `xml:"TxId"`
+	UETR          *string `xml:"UETR,omitempty"`
+}
+
+// Remt00100104Document represents the REMT.001.001.04 Stand-alone Remittance Advice message.
+// The RTP Message Spec references this message but does not detail its structure; the types below
+// follow the ISO 20022 RemittanceAdviceV04 schema and reuse the shared remittance types.
+type Remt00100104Document struct {
+	XMLName          xml.Name            `xml:"urn:iso:std:iso:20022:tech:xsd:remt.001.001.04 Document"`
+	RemittanceAdvice RemittanceAdviceV04 `xml:"RmtAdvc"`
+}
+
+// RemittanceAdviceV04 is the body of the Stand-alone Remittance Advice (remt.001.001.04).
+type RemittanceAdviceV04 struct {
+	GroupHeader           GroupHeader62             `xml:"GrpHdr"`
+	RemittanceInformation []RemittanceInformation19 `xml:"RmtInf"`
+	SupplementaryData     []SupplementaryData1      `xml:"SplmtryData,omitempty"`
+}
+
+// GroupHeader62 is the group header for the Stand-alone Remittance Advice.
+type GroupHeader62 struct {
+	MessageID        string                  `xml:"MsgId"`
+	CreationDateTime time.Time               `xml:"CreDtTm"`
+	Authorisation    []Authorisation1Choice  `xml:"Authstn,omitempty"`
+	CopyIndicator    *string                 `xml:"CpyInd,omitempty"`
+	InitiatingParty  PartyIdentification135  `xml:"InitgPty"`
+	MessageRecipient *PartyIdentification135 `xml:"MsgRcpt,omitempty"`
+}
+
+// Authorisation1Choice specifies the level of consent of an authorisation.
+type Authorisation1Choice struct {
+	Code        *string `xml:"Cd,omitempty"`
+	Proprietary *string `xml:"Prtry,omitempty"`
+}
+
+// RemittanceInformation19 carries the structured/unstructured remittance details, keyed by RemittanceID.
+type RemittanceInformation19 struct {
+	RemittanceID *string                      `xml:"RmtId,omitempty"` // ties the advice back to the pacs.008
+	Unstructured []string                     `xml:"Ustrd,omitempty"`
+	Structured   []StructuredRemittanceInfo16 `xml:"Strd,omitempty"`
+}
+
+// Acmt02200102Document represents the ACMT.022.001.02 Identification Modification Advice message.
+// In RTP this is the Token Identification message, reporting tokenized account credentials back
+// to a sending participant when a token exists for the destination account.
+type Acmt02200102Document struct {
+	XMLName                          xml.Name                            `xml:"urn:iso:std:iso:20022:tech:xsd:acmt.022.001.02 Document"`
+	IdentificationModificationAdvice IdentificationModificationAdviceV02 `xml:"IdModAdvc"`
+}
+
+// IdentificationModificationAdviceV02 is the body of the RTP Token Identification message (acmt.022.001.02).
+type IdentificationModificationAdviceV02 struct {
+	Assignment                   IdentificationAssignment3     `xml:"Assgnmt"`
+	OriginalTransactionReference OriginalTransactionReference1 `xml:"OrgnlTxRef"`
+	Modification                 IdentificationModification1   `xml:"Mod"`
+}
+
+// IdentificationAssignment3 identifies the assignment of an identification modification advice.
+type IdentificationAssignment3 struct {
+	MessageID        string    `xml:"MsgId"`
+	CreationDateTime time.Time `xml:"CreDtTm"`
+	Assigner         Party40   `xml:"Assgnr"` // RTP
+	Assignee         Party40   `xml:"Assgne"` // original instructing participant
+}
+
+// OriginalTransactionReference1 references the original message the advice relates to.
+type OriginalTransactionReference1 struct {
+	MessageID           string                 `xml:"MsgId"`
+	MessageNameID       string                 `xml:"MsgNmId"` // e.g. pacs.008.001.08 or pain.013.001.07
+	CreationDateTime    time.Time              `xml:"CreDtTm"`
+	OriginalTransaction TransactionReferences1 `xml:"OrgnlTx"`
+}
+
+// TransactionReferences1 carries the original transaction's references.
+type TransactionReferences1 struct {
+	InstructionID string `xml:"InstrId"`
+	EndToEndID    string `xml:"EndToEndId"`
+	TransactionID string `xml:"TxId"`
+}
+
+// IdentificationModification1 describes the original and updated party/account identification.
+type IdentificationModification1 struct {
+	Identification            string                          `xml:"Id"`
+	OriginalPartyAndAccountID *PartyAndAccountIdentification4 `xml:"OrgnlPtyAndAcctId,omitempty"`
+	UpdatedPartyAndAccountID  PartyAndAccountIdentification4  `xml:"UpdtdPtyAndAcctId"`
+	AdditionalInformation     *string                         `xml:"AddtlInf,omitempty"`
+}
+
+// PartyAndAccountIdentification4 groups an (optional) party with its account and servicing agent.
+type PartyAndAccountIdentification4 struct {
+	Party   *PartyIdentification135                      `xml:"Pty,omitempty"`
+	Account CashAccount38                                `xml:"Acct"`
+	Agent   BranchAndFinancialInstitutionIdentification6 `xml:"Agt"`
+}
+
+// -----------------------------------------------------------------------------
+// admn.001 - admn.008 : RTP administration messages
+// -----------------------------------------------------------------------------
+
+// AdmnGroupHeader is the minimal group header shared by all RTP admn messages.
+type AdmnGroupHeader struct {
+	MessageID        string    `xml:"MsgId"`
+	CreationDateTime time.Time `xml:"CreDtTm"`
+}
+
+// Admn00100101Document represents the ADMN.001.001.01 Sign-On Request message.
+// The Instructing Agent uses it to request sign-on to RTP.
+type Admn00100101Document struct {
+	XMLName       xml.Name         `xml:"urn:iso:std:iso:20022:tech:xsd:admn.001.001.01 Document"`
+	SignOnRequest SignOnRequestV01 `xml:"AdmnSignOnReq"`
+}
+
+// SignOnRequestV01 is the body of the Sign-On Request (admn.001.001.01).
+type SignOnRequestV01 struct {
+	GroupHeader   AdmnGroupHeader `xml:"GrpHdr"`
+	SignOnRequest SignOnRequest1  `xml:"SignOnReq"`
+}
+
+// SignOnRequest1 carries the sign-on instruction and the agents involved.
+type SignOnRequest1 struct {
+	InstructionID    string                                       `xml:"InstrId"`
+	InstructingAgent BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"` // FI requesting sign-on
+	InstructedAgent  BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"` // RTP
+}
+
+// Admn00200101Document represents the ADMN.002.001.01 Sign-On Response message.
+// RTP uses it to respond to a Sign-On Request.
+type Admn00200101Document struct {
+	XMLName        xml.Name          `xml:"urn:iso:std:iso:20022:tech:xsd:admn.002.001.01 Document"`
+	SignOnResponse SignOnResponseV01 `xml:"AdmnSignOnResp"`
+}
+
+// SignOnResponseV01 is the body of the Sign-On Response (admn.002.001.01).
+type SignOnResponseV01 struct {
+	GroupHeader    AdmnGroupHeader `xml:"GrpHdr"`
+	SignOnResponse SignOnResponse1 `xml:"SignOnResp"`
+}
+
+// SignOnResponse1 reports the outcome of a sign-on request.
+type SignOnResponse1 struct {
+	OriginalInstructionID   string                                       `xml:"OrgnlInstrId"`
+	InstructingAgent        BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"` // RTP
+	InstructedAgent         BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"` // originating FI
+	Status                  string                                       `xml:"Sts"`      // 'ACTC' or 'RJCT'
+	StatusReasonInformation *AdmnStatusReasonInformation1                `xml:"StsRsnInf,omitempty"`
+}
+
+// AdmnStatusReasonInformation1 carries a proprietary reject reason; present only for 'RJCT'.
+type AdmnStatusReasonInformation1 struct {
+	Reason AdmnStatusReason1 `xml:"Rsn"`
+}
+
+// AdmnStatusReason1 holds the proprietary RTP reason code.
+type AdmnStatusReason1 struct {
+	Proprietary string `xml:"Prtry"`
+}
+
+// Admn00300101Document represents the ADMN.003.001.01 Sign-Off Request message.
+// An FI uses it to sign off from RTP.
+type Admn00300101Document struct {
+	XMLName        xml.Name          `xml:"urn:iso:std:iso:20022:tech:xsd:admn.003.001.01 Document"`
+	SignOffRequest SignOffRequestV01 `xml:"AdmnSignOffReq"`
+}
+
+// SignOffRequestV01 is the body of the Sign-Off Request (admn.003.001.01).
+type SignOffRequestV01 struct {
+	GroupHeader    AdmnGroupHeader `xml:"GrpHdr"`
+	SignOffRequest SignOffRequest1 `xml:"SignOffReq"`
+}
+
+// SignOffRequest1 carries the sign-off instruction and the agents involved.
+type SignOffRequest1 struct {
+	InstructionID    string                                       `xml:"InstrId"`
+	InstructingAgent BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"` // FI requesting sign-off
+	InstructedAgent  BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"` // RTP
+}
+
+// Admn00400101Document represents the ADMN.004.001.01 Sign-Off Response message.
+// RTP uses it to respond to a Sign-Off Request.
+type Admn00400101Document struct {
+	XMLName         xml.Name           `xml:"urn:iso:std:iso:20022:tech:xsd:admn.004.001.01 Document"`
+	SignOffResponse SignOffResponseV01 `xml:"AdmnSignOffResp"`
+}
+
+// SignOffResponseV01 is the body of the Sign-Off Response (admn.004.001.01).
+type SignOffResponseV01 struct {
+	GroupHeader     AdmnGroupHeader  `xml:"GrpHdr"`
+	SignOffResponse SignOffResponse1 `xml:"SignOffResp"`
+}
+
+// SignOffResponse1 reports the outcome of a sign-off request.
+type SignOffResponse1 struct {
+	OriginalInstructionID   string                                       `xml:"OrgnlInstrId"`
+	InstructingAgent        BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"` // RTP
+	InstructedAgent         BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"` // originating FI
+	Status                  string                                       `xml:"Sts"`      // 'ACTC' or 'RJCT'
+	StatusReasonInformation *AdmnStatusReasonInformation1                `xml:"StsRsnInf,omitempty"`
+}
+
+// Admn00500101Document represents the ADMN.005.001.01 Echo Request message.
+// Used as a connectivity / heartbeat check.
+type Admn00500101Document struct {
+	XMLName     xml.Name       `xml:"urn:iso:std:iso:20022:tech:xsd:admn.005.001.01 Document"`
+	EchoRequest EchoRequestV01 `xml:"AdmnEchoReq"`
+}
+
+// EchoRequestV01 is the body of the Echo Request (admn.005.001.01).
+type EchoRequestV01 struct {
+	GroupHeader                AdmnGroupHeader  `xml:"GrpHdr"`
+	EchoTransactionInformation EchoTransaction1 `xml:"EchoTxInf"`
+}
+
+// EchoTransaction1 carries the echo function code and agents.
+type EchoTransaction1 struct {
+	FunctionCode     string                                       `xml:"FnctnCd"` // '731' for echo test
+	InstructionID    string                                       `xml:"InstrId"`
+	InstructingAgent BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"`
+	InstructedAgent  BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"`
+}
+
+// Admn00600101Document represents the ADMN.006.001.01 Echo Response message.
+// RTP uses it to respond to an Echo Request.
+type Admn00600101Document struct {
+	XMLName      xml.Name        `xml:"urn:iso:std:iso:20022:tech:xsd:admn.006.001.01 Document"`
+	EchoResponse EchoResponseV01 `xml:"AdmnEchoResp"`
+}
+
+// EchoResponseV01 is the body of the Echo Response (admn.006.001.01).
+type EchoResponseV01 struct {
+	GroupHeader  AdmnGroupHeader `xml:"GrpHdr"`
+	EchoResponse EchoResponse1   `xml:"EchoResponse"`
+}
+
+// EchoResponse1 reports the echo result.
+type EchoResponse1 struct {
+	InstructingAgent      BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"`
+	InstructedAgent       BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"`
+	OriginalInstructionID string                                       `xml:"OrgnlInstrId"`
+	FunctionCode          string                                       `xml:"FnctnCd"` // '731'
+	TransactionStatus     string                                       `xml:"TxSts"`   // 'ACTC'
+}
+
+// Admn00700101Document represents the ADMN.007.001.01 Database Report Request message.
+// A Participant uses it to request a Database / Back-Office report on an ad-hoc basis.
+type Admn00700101Document struct {
+	XMLName               xml.Name                 `xml:"urn:iso:std:iso:20022:tech:xsd:admn.007.001.01 Document"`
+	DatabaseReportRequest DatabaseReportRequestV01 `xml:"DBRptReq"`
+}
+
+// DatabaseReportRequestV01 is the body of the Database Report Request (admn.007.001.01).
+type DatabaseReportRequestV01 struct {
+	GroupHeader               AdmnGroupHeader            `xml:"GrpHdr"`
+	DatabaseReportInformation DatabaseReportInformation1 `xml:"DBRptInf"`
+}
+
+// DatabaseReportInformation1 carries the report code and agents.
+type DatabaseReportInformation1 struct {
+	ReportCode       string                                       `xml:"RptCd"` // 'AVLBTY'
+	InstructionID    string                                       `xml:"InstrId"`
+	InstructingAgent BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"`
+	InstructedAgent  BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"` // RTP
+}
+
+// Admn00800101Document represents the ADMN.008.001.01 Database Availability Report message
+// (Participants Unable to Transact Report). RTP responds to an admn.007 with this report.
+type Admn00800101Document struct {
+	XMLName                    xml.Name                      `xml:"urn:iso:std:iso:20022:tech:xsd:admn.008.001.01 Document"`
+	DatabaseAvailabilityReport DatabaseAvailabilityReportV01 `xml:"DBAvlbtyRpt"`
+}
+
+// DatabaseAvailabilityReportV01 is the body of the Database Availability Report (admn.008.001.01).
+type DatabaseAvailabilityReportV01 struct {
+	GroupHeader            AdmnGroupHeader         `xml:"GrpHdr"`
+	DatabaseReportResponse DatabaseReportResponse1 `xml:"DBRptRspn"`
+	AvailabilityReport     AvailabilityReport1     `xml:"AvlbtyRpt"` // empty when all participants are available
+}
+
+// DatabaseReportResponse1 echoes the request reference and reports its status.
+type DatabaseReportResponse1 struct {
+	OriginalInstructionID string                                       `xml:"OrgnlInstrId"`
+	ReportCode            string                                       `xml:"RptCd"`    // 'AVLBTY'
+	InstructingAgent      BranchAndFinancialInstitutionIdentification6 `xml:"InstgAgt"` // RTP
+	InstructedAgent       BranchAndFinancialInstitutionIdentification6 `xml:"InstdAgt"` // requesting participant
+	TransactionStatus     string                                       `xml:"TxSts"`    // 'ACTC'
+}
+
+// AvailabilityReport1 lists unavailable connections and unavailable participants.
+type AvailabilityReport1 struct {
+	Connection              *Connection1              `xml:"Cnnctn,omitempty"`
+	AvailabilityParticipant *AvailabilityParticipant1 `xml:"AvlbtyPtcpt,omitempty"`
+}
+
+// Connection1 lists connection identifiers that are marked unavailable.
+type Connection1 struct {
+	ConnectionID []string `xml:"CnnctnId"` // [1..n], max 20 chars each
+}
+
+// AvailabilityParticipant1 groups participants that are signed-off and/or suspended.
+type AvailabilityParticipant1 struct {
+	ParticipantSignOff   *ParticipantList1 `xml:"PtcptSgnOff,omitempty"`
+	ParticipantSuspended *ParticipantList1 `xml:"PtcptSspd,omitempty"`
+}
+
+// ParticipantList1 lists participant identifiers.
+type ParticipantList1 struct {
+	ParticipantID []string `xml:"PtcptId"` // [1..n], 11 chars each
+}
